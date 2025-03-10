@@ -42,6 +42,11 @@ public class LED extends SubsystemBase{
     private Star[] stars = new Star[720];
     private final float starFreq = 0.003f;
     private final Color starColor = new Color(255, 40, 0);
+    private final float starLowTemp = 800f;
+    private final float starHighTemp = 5800f;
+    private final float starCycleSpeed = 250f;
+    private final float starCycleVariation = 150f;
+
     
 
     /**
@@ -129,7 +134,7 @@ public class LED extends SubsystemBase{
     {
         for(int i = 0; i < this.stars.length; i++)
         {
-            this.stars[i] = new Star(starColor, starFreq,i);
+            this.stars[i] = new Star(starLowTemp,starHighTemp,starCycleSpeed,starCycleVariation,starFreq,i);
         }
     }
 
@@ -210,57 +215,30 @@ public class LED extends SubsystemBase{
 
     private class Star 
     {
-        private Color color;
-        private float brightness;
         private boolean increasing;
         private boolean lit;
         private float frequency;
         private Random randomizer;
-        private float speed;
         private float temperature;
         private float red, green, blue;
         private float temperatureSpeed;
+        private float lowTemp, highTemp;
+        private float cycleTime, cycleVariation;
 
 
 
-        public Star(Color color, float frequency, int seed)
+        public Star(float lowTemp, float highTemp, float cycleTime, float cycleVariation, float frequency, int seed)
         {
-            this.color = color;
             this.frequency = frequency;
-            this.brightness = 0f;
             this.lit = false;
             this.increasing = false;
             this.randomizer = new Random(seed);
-            this.speed = 0.01f;
-            this.temperatureSpeed = 100;
-            this.temperature = 1200f;
-        }
-
-        public Color getColor()
-        {
-            Color outColor;
-            if (lit) {
-                float[] hsbValues = new float[3];
-                java.awt.Color.RGBtoHSB((int)(color.red*255), (int)(color.blue*255), (int)(color.green*255), hsbValues);
-                hsbValues[2]*=brightness;
-                hsbValues[1]-=brightness;
-                //hsbValues[0] = hsbValues[0]+brightness/0.05f;
-                outColor = Color.fromHSV((int)((hsbValues[0]*180)%180), (int)(hsbValues[1]*255), (int)(hsbValues[2]*255));
-
-                if(brightness>=1) increasing = false;
-                if(increasing) brightness +=speed; else brightness -= speed;
-                brightness = (float)Math.min(brightness, 1);
-                brightness = (float)Math.max(brightness, 0);
-                if(brightness<=0)  lit = false;
-
-            } else if(randomizer.nextFloat()<frequency)
-            {
-                lit = true;
-                increasing = true;
-                outColor = Color.kBlack;
-                speed = randomizer.nextFloat(0.01f, 0.05f);
-            } else outColor = Color.kBlack;
-            return outColor;
+            this.temperatureSpeed = cycleTime;
+            this.temperature = lowTemp;
+            this.lowTemp = lowTemp;
+            this.highTemp = highTemp;
+            this.cycleTime = cycleTime;
+            this.cycleVariation = cycleVariation;
         }
 
         public Color getTemperatureColor()
@@ -306,65 +284,22 @@ public class LED extends SubsystemBase{
                 //outColor = new Color(red/255.0, green/255.0*4.0, blue/255.0/4);
                 float[] hsvvalues = new float[3];
                 java.awt.Color.RGBtoHSB((int)red, (int)green, (int)blue, hsvvalues);
-                hsvvalues[2]*=Math.pow(((temperature-800)/5000.0),1);
+                hsvvalues[2]*=Math.pow(((temperature-lowTemp)/(highTemp-lowTemp)),1);
                 hsvvalues[2] = Math.max(hsvvalues[2], 0.01f);
                 outColor = Color.fromHSV((int)(hsvvalues[0]*180), (int)(hsvvalues[1]*255), (int)(hsvvalues[2]*255));
-                if(temperature>=5800) increasing = false;
+                if(temperature>=highTemp) increasing = false;
                 if(increasing) temperature +=temperatureSpeed; else temperature -= temperatureSpeed;
-                if(temperature<=800)  lit = false;
+                if(temperature<=lowTemp)  lit = false;
             } 
             else if(randomizer.nextFloat()<frequency)
             {
                 lit = true;
                 increasing = true;
                 outColor = new Color(0, 0, 1);
-                temperatureSpeed = randomizer.nextFloat(100f, 400f);
+                temperatureSpeed = randomizer.nextFloat(cycleTime-cycleVariation/2f, cycleTime+cycleVariation/2f);
             } else outColor = new Color(0, 0, 1);
             return outColor;
 
-        }
-        public static double[] TemptoRGB(double temperature)
-        {
-            double[] outputs = new double[3];
-            double red, green, blue;
-            double temptemp = temperature/100;
-            if(temptemp <= 66)
-                {
-                    red = 255f;
-                } 
-                else
-                {
-                    red = 329.698727446f * (float)Math.pow(temptemp - 60f, -0.1332047592);
-                    red = (float)Math.min(red, 255);
-                    red = (float)Math.max(red, 0);
-                }
-
-                if( temptemp <= 66)
-                {
-                    green = 99.4708025861f * (float)Math.log(temptemp) - 161.1195681661f;
-                    green = (float)Math.min(green, 255);
-                    green = (float)Math.max(green, 0);
-                }
-                else
-                {
-                    green = 288.1221695283f * (float)Math.pow(temptemp-60, -0.0755148492);
-                    green = (float)Math.min(green, 255);
-                    green = (float)Math.max(green, 0);
-                }
-                if(temptemp >= 66)
-                {
-                    blue = 255f;
-                }
-                else
-                {
-                    blue = 138.5177312231f * (float)Math.log(temptemp-10) - 305.0447927307f;
-                    blue = (float)Math.min(blue, 255);
-                    blue = (float)Math.max(blue, 0);
-                }
-                outputs[0] = red;
-                outputs[1] = green;
-                outputs[2] = blue;
-                return outputs;
         }
         
     }
